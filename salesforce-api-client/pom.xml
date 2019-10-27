@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>com.mckesson.kafka.connect</groupId>
+		<artifactId>kafka-connect-parent</artifactId>
+		<version>1.0.0.ga</version>
+	</parent>
+
+	<artifactId>salesforce-api-client</artifactId>
+
+	<dependencies>
+                <!-- parent managed deps -->
+		<dependency>
+			<groupId>com.mckesson.kafka.connect</groupId>
+			<artifactId>kafka-connect-common</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.mckesson.kafka.connect</groupId>
+			<artifactId>pollable-source</artifactId>
+		</dependency>
+
+
+                <!-- project specific deps -->
+		<dependency>
+			<groupId>com.frejo</groupId>
+			<artifactId>force-rest-api</artifactId>
+                        <version>0.0.40</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-csv</artifactId>
+                        <version>1.5</version>
+		</dependency>
+	</dependencies>
+
+</project>
