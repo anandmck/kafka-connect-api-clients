@@ -117,6 +117,8 @@ public class AzureADAuditLogsClient implements PollableAPIClient {
 
   private static final DateTimeFormatter OFFSET_DT_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSSS'Z'").withZone(ZoneOffset.UTC);
 
+  protected AtomicBoolean stop;
+
   private int initialDays;
   private long dataLatency;
   private String initialOffset;
@@ -155,7 +157,7 @@ public class AzureADAuditLogsClient implements PollableAPIClient {
       throw new NullPointerException("partition is null");
     if (offset == null)
       throw new NullPointerException("offset is null");
-
+    this.stop = new AtomicBoolean(false);
     AuthenticationResult token;
     try {
       token = tokenClient.getCurrentToken();
@@ -289,9 +291,19 @@ public class AzureADAuditLogsClient implements PollableAPIClient {
 
     // check status
     int httpStatus = resp.getStatusLine().getStatusCode();
+    log.debug("http response status: {}", httpStatus);
     if (HttpStatus.SC_OK == httpStatus) {
       T value = jacksonObjectMapper.readValue(resp.getEntity().getContent(), valueType);
       return value;
+    } else if (429 == httpStatus) {
+      String retryAfter = resp.getLastHeader("Retry-After").getValue();
+      String rateLimitReason = resp.getLastHeader("Rate-Limit-Reason").getValue();
+      String message = CharStreams.toString(new InputStreamReader(resp.getEntity().getContent(), Charsets.UTF_8));
+      log.error("API throttling error(429). Retry-After={},  Rate-Limit-Reason={} Message={}", retryAfter, rateLimitReason, message);
+      GraphErrorMessage graphError = jacksonObjectMapper.readValue(message, GraphErrorMessage.class);
+      log.debug("Sleep {} seconds before retry", retryAfter);
+      sleep(Integer.valueOf(retryAfter) * 1000L);
+      throw new Exception(graphError.getError().getMessage());
     } else {
       String message = null;
       message = CharStreams.toString(new InputStreamReader(resp.getEntity().getContent(), Charsets.UTF_8));
@@ -324,8 +336,22 @@ public class AzureADAuditLogsClient implements PollableAPIClient {
     };
   }
 
+  public void sleep(long millis) {
+    long wakeuptime = System.currentTimeMillis() + millis;
+    while (true) {
+      try {
+        Thread.sleep(1000L);
+      } catch (InterruptedException e) {
+        log.debug("Sleep interrupted");
+      }
+      if (System.currentTimeMillis() >= wakeuptime || stop.get())
+        break;
+    }
+  }
+
   @Override
   public void close() {
+    this.stop.set(true);
     try {
       if (httpClient instanceof CloseableHttpClient) {
         ((CloseableHttpClient) httpClient).close();
