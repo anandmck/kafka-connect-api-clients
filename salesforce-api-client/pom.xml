@@ -22,6 +22,11 @@
 			<groupId>com.mckesson.kafka.connect</groupId>
 			<artifactId>pollable-source</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-csv</artifactId>
+		</dependency>
+
 
 
                 <!-- project specific deps -->
@@ -29,11 +34,6 @@
 			<groupId>com.frejo</groupId>
 			<artifactId>force-rest-api</artifactId>
                         <version>0.0.40</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.commons</groupId>
-			<artifactId>commons-csv</artifactId>
-                        <version>1.5</version>
 		</dependency>
 	</dependencies>
 
