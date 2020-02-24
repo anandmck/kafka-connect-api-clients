@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
@@ -12,7 +13,7 @@
 	<artifactId>gcp-api-client</artifactId>
 
 	<dependencies>
-                <!-- parent managed deps -->
+		<!-- parent managed deps -->
 		<dependency>
 			<groupId>com.mckesson.kafka.connect</groupId>
 			<artifactId>kafka-connect-common</artifactId>
@@ -21,9 +22,12 @@
 			<groupId>com.mckesson.kafka.connect</groupId>
 			<artifactId>pollable-source</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-csv</artifactId>
+		</dependency>
 
-                <!-- project specific deps -->
-
+		<!-- project specific deps -->
 		<dependency>
 			<groupId>com.google.auth</groupId>
 			<artifactId>google-auth-library-oauth2-http</artifactId>
@@ -38,6 +42,11 @@
 			<groupId>com.google.cloud</groupId>
 			<artifactId>google-cloud-securitycenter</artifactId>
 			<version>0.115.0</version>
+		</dependency>
+		<dependency>
+			<groupId>com.google.cloud</groupId>
+			<artifactId>google-cloud-storage</artifactId>
+			<version>1.102.0</version>
 		</dependency>
 	</dependencies>
 
