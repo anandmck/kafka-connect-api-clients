@@ -109,6 +109,10 @@ public class CSVBlobReader extends TextBlobReader {
 
   @Override
   public Object read(Blob blob, Object offset, Collection<String> records, int itemsToPoll) throws IOException {
+    
+    if (blob == null) {
+      return null;
+    }
 
     ReadChannel readChannel = blob.reader(readOpts.toArray(new BlobSourceOption[0]));
     if (readChunkSize > 0) {
