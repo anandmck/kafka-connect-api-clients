@@ -15,6 +15,7 @@
  */
 package com.mckesson.kafka.connect.azure.client;
 
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -293,12 +294,27 @@ public class AzureADAuditLogsClient implements PollableAPIClient {
     int httpStatus = resp.getStatusLine().getStatusCode();
     log.debug("http response status: {}", httpStatus);
     if (HttpStatus.SC_OK == httpStatus) {
-      T value = jacksonObjectMapper.readValue(resp.getEntity().getContent(), valueType);
-      return value;
+      
+      try (InputStream respIS = resp.getEntity().getContent();){
+        T value = jacksonObjectMapper.readValue(respIS, valueType);
+        return value;
+      }catch (Exception e) {
+        throw new APIClientException("Failed to read content from a success response", e);
+      }
+      
     } else if (429 == httpStatus) {
       String retryAfter = resp.getLastHeader("Retry-After").getValue();
       String rateLimitReason = resp.getLastHeader("Rate-Limit-Reason").getValue();
-      String message = CharStreams.toString(new InputStreamReader(resp.getEntity().getContent(), Charsets.UTF_8));
+      
+      String message;
+      try (InputStream respIS = resp.getEntity().getContent();){
+        message = CharStreams.toString(new InputStreamReader(respIS), Charsets.UTF_8);
+      }catch (Exception e) {
+        throw new APIClientException("Failed to read content from a success response", e);
+      }
+
+      
+      
       log.error("API throttling error(429). Retry-After={},  Rate-Limit-Reason={} Message={}", retryAfter, rateLimitReason, message);
       GraphErrorMessage graphError = jacksonObjectMapper.readValue(message, GraphErrorMessage.class);
       log.debug("Sleep {} seconds before retry", retryAfter);
