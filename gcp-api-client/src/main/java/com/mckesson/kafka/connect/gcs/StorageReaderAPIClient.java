@@ -262,6 +262,10 @@ public class StorageReaderAPIClient implements PollableAPIClient {
         currentBlobOffset = offset.get(OFFSET_CURRENT_BLOB_OFFSET_KEY);
       } else {
         currentBlob = blobsQueue.poll();
+        if (currentBlob == null) {
+          log.debug("No more blobs in queue. Exit from poll");
+          break;
+        }
         log.debug("Start Blob:  {}@{}", currentBlob.getName(), currentBlob.getBucket());
         offset.put(OFFSET_CURRENT_BLOB_NAME_KEY, currentBlob.getName());
       }
@@ -269,8 +273,10 @@ public class StorageReaderAPIClient implements PollableAPIClient {
       List<Object> dataRecs = new ArrayList<>();
 
       try {
-        currentBlobOffset = reader.read(currentBlob, currentBlobOffset, dataRecs, itemsToPoll - pollResult.size());
-        log.debug("Loaded {} records from {}", dataRecs.size(), currentBlob.getBlobId());
+        if (currentBlob != null) {
+          currentBlobOffset = reader.read(currentBlob, currentBlobOffset, dataRecs, itemsToPoll - pollResult.size());
+          log.debug("Loaded {} records from {}", dataRecs.size(), currentBlob.getBlobId());
+        }
       } catch (IOException e) {
         throw new ConnectException("Failed to read:" + currentBlob, e);
       }
@@ -304,6 +310,9 @@ public class StorageReaderAPIClient implements PollableAPIClient {
   }
 
   private void moveBlob(Blob currentBlob) {
+    if (currentBlob == null) {
+      return;
+    }
     if (StringUtils.isNotBlank(this.processedBucketName)) {
       log.debug("Move processed blob to bucket: {}/{}/{}", this.processedBucketName, this.processedPrefix, currentBlob.getName());
       currentBlob.copyTo(this.processedBucketName, processedPrefix + currentBlob.getName());
