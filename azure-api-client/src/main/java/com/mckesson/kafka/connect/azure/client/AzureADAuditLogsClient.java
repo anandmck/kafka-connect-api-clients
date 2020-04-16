@@ -276,9 +276,12 @@ public class AzureADAuditLogsClient implements PollableAPIClient {
     List<SourceRecord> records = new ArrayList<>(pollResult.size());
     for (JsonNode n : pollResult) {
       try {
-        records.add(new SourceRecord(partition, offset, topic, null, partition.get(PARTITION_NAME_KEY), null, jacksonObjectMapper.writeValueAsString(n)));
+        SourceRecord rec = new SourceRecord(partition, offset, topic, null, null, null, jacksonObjectMapper.writeValueAsString(n));
+        rec.headers().addString("aad.datatype", partition.get(PARTITION_NAME_KEY).toString());
+        records.add(rec);
       } catch (JsonProcessingException e) {
-        SourceRecord r = new SourceRecord(partition, offset, topic, null, partition.get(PARTITION_NAME_KEY), null, n.toString());
+        SourceRecord r = new SourceRecord(partition, offset, topic, null, null, null, n.toString());
+        r.headers().addString("aad.datatype", partition.get(PARTITION_NAME_KEY).toString());
         r.headers().addBoolean("failed", true);
         r.headers().addString("errorMsg", e.getMessage());
         records.add(r);
@@ -294,27 +297,25 @@ public class AzureADAuditLogsClient implements PollableAPIClient {
     int httpStatus = resp.getStatusLine().getStatusCode();
     log.debug("http response status: {}", httpStatus);
     if (HttpStatus.SC_OK == httpStatus) {
-      
-      try (InputStream respIS = resp.getEntity().getContent();){
+
+      try (InputStream respIS = resp.getEntity().getContent();) {
         T value = jacksonObjectMapper.readValue(respIS, valueType);
         return value;
-      }catch (Exception e) {
-        throw new APIClientException("Failed to read content from a success response", e);
-      }
-      
-    } else if (429 == httpStatus) {
-      String retryAfter = resp.getLastHeader("Retry-After").getValue();
-      String rateLimitReason = resp.getLastHeader("Rate-Limit-Reason").getValue();
-      
-      String message;
-      try (InputStream respIS = resp.getEntity().getContent();){
-        message = CharStreams.toString(new InputStreamReader(respIS), Charsets.UTF_8);
-      }catch (Exception e) {
+      } catch (Exception e) {
         throw new APIClientException("Failed to read content from a success response", e);
       }
 
-      
-      
+    } else if (429 == httpStatus) {
+      String retryAfter = resp.getLastHeader("Retry-After").getValue();
+      String rateLimitReason = resp.getLastHeader("Rate-Limit-Reason").getValue();
+
+      String message;
+      try (InputStream respIS = resp.getEntity().getContent();) {
+        message = CharStreams.toString(new InputStreamReader(respIS, Charsets.UTF_8));
+      } catch (Exception e) {
+        throw new APIClientException("Failed to read content from a success response", e);
+      }
+
       log.error("API throttling error(429). Retry-After={},  Rate-Limit-Reason={} Message={}", retryAfter, rateLimitReason, message);
       GraphErrorMessage graphError = jacksonObjectMapper.readValue(message, GraphErrorMessage.class);
       log.debug("Sleep {} seconds before retry", retryAfter);
