@@ -100,6 +100,8 @@ public class OktaSystemLogAPIClient extends HttpAPIClient {
       node = mapper.readValue(response.body().byteStream(), JsonNode.class);
     } catch (Exception e1) {
       throw new APIClientException("failed to read response", e1);
+    }finally {
+      response.close();
     }
 
     String dataPointer = "";

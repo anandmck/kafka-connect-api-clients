@@ -166,6 +166,8 @@ public class O365ReportSvcPollableClient extends HttpAPIClient {
       node = mapper.readValue(response.body().byteStream(), JsonNode.class);
     } catch (Exception e) {
       throw new APIClientException("Failed to read response", e);
+    } finally {
+      response.close();
     }
 
     JsonNode dataNode = node.at("/value");
