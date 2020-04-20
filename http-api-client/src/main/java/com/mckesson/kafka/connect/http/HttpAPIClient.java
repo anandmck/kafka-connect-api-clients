@@ -19,11 +19,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.collections4.MapUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.common.Configurable;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.connect.errors.ConnectException;
@@ -60,6 +62,10 @@ public abstract class HttpAPIClient implements PollableAPIClient {
   public static final String AUTH_TYPE_DEFAULT = "none";
   public static final String AUTH_CLASS_CONFIG = "http.auth.class";
 
+  public static final String REQUEST_HEADERS_CONFIG = "http.request.headers";
+  public static final String HEADER_NAME_CONFIG = "name";
+  public static final String HEADER_VALUE_CONFIG = "value";
+
   protected enum AuthType {
     NONE, BASIC, NTLM, CUSTOM;
 
@@ -94,13 +100,19 @@ public abstract class HttpAPIClient implements PollableAPIClient {
       .define(SERVER_URI_CONFIG, ConfigDef.Type.STRING, ConfigDef.NO_DEFAULT_VALUE, ConfigDef.Importance.HIGH, "URI of Jira server. Required.")
       .define(ENDPPOINT_CONFIG, ConfigDef.Type.STRING, ConfigDef.NO_DEFAULT_VALUE, ConfigDef.Importance.HIGH, "Endpoint")
       .define(AUTH_TYPE_CONFIG, ConfigDef.Type.STRING, AUTH_TYPE_DEFAULT, ConfigDef.Importance.MEDIUM, "Authtype. Default: none")
+      .define(REQUEST_HEADERS_CONFIG, ConfigDef.Type.LIST, Collections.emptyList(), ConfigDef.Importance.MEDIUM, "Http request headers")
       .define(AUTH_CLASS_CONFIG, ConfigDef.Type.CLASS, null, ConfigDef.Importance.LOW, "Custom auth class");
+
+  public static final ConfigDef HEADER_DEF = new ConfigDef()
+      .define(HEADER_NAME_CONFIG, ConfigDef.Type.STRING, null, ConfigDef.Importance.HIGH, "Header name")
+      .define(HEADER_VALUE_CONFIG, ConfigDef.Type.STRING, null, ConfigDef.Importance.HIGH, "Header value");
 
   protected static final String PARTITION_URL_KEY = "___URL";
   protected static final String PARTITION_METHOD_KEY = "___METHOD";
 
   protected final ObjectMapper mapper = new ObjectMapper();
   protected OkHttpClient httpClient;
+  protected Map<String, List<String>> httpHeaders;
 
   protected String serverUri;
   protected String endpoint;
@@ -122,12 +134,25 @@ public abstract class HttpAPIClient implements PollableAPIClient {
       authenticator = authType.getAuthenticator();
       ((Configurable) authenticator).configure(configs);
     }
-
     try {
       this.httpClient = OkHttpClientConfig.buildClient(configs, authenticator);
     } catch (Exception e) {
       throw new ConnectException("Failed to configure http client", e);
     }
+
+    List<String> headersList = conf.getList(REQUEST_HEADERS_CONFIG);
+    if (headersList != null && headersList.size() > 0) {
+      httpHeaders = new LinkedHashMap<>();
+      for (String alias : headersList) {
+        SimpleConfig hc = new SimpleConfig(HEADER_DEF, conf.originalsWithPrefix(REQUEST_HEADERS_CONFIG + "." + alias + "."));
+        String name = StringUtils.isBlank(hc.getString(HEADER_NAME_CONFIG)) ? alias : hc.getString(HEADER_NAME_CONFIG);
+        String value = hc.getString(HEADER_VALUE_CONFIG);
+        httpHeaders.putIfAbsent(name, new ArrayList<>());
+        httpHeaders.get(name).add(value);
+      }
+
+    }
+
     log.debug("HttpAPIClient configured.");
   }
 
@@ -139,6 +164,14 @@ public abstract class HttpAPIClient implements PollableAPIClient {
     if (rBuilder == null) {
       log.debug("No request built, exit poll");
       return Collections.emptyList();
+    }
+
+    if (httpHeaders != null && httpHeaders.size() > 0) {
+      for (Map.Entry<String, List<String>> e : httpHeaders.entrySet()) {
+        for (String value : e.getValue()) {
+          rBuilder.addHeader(e.getKey(), value);
+        }
+      }
     }
 
     Request request = rBuilder.build();

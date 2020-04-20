@@ -34,20 +34,17 @@ import okhttp3.Response;
 import okhttp3.Request.Builder;
 
 public class JsonGetAPIClient extends HttpAPIClient {
-  
-  
+
   public static final String JSON_DATA_POINTER_CONFIG = "json.data.pointer";
   public static final String JSON_DATA_POINTER_DEFAULT = "/";
-  
+
   public static final ConfigDef CONFIG_DEF = new ConfigDef()
       .define(JSON_DATA_POINTER_CONFIG, ConfigDef.Type.STRING, JSON_DATA_POINTER_DEFAULT, ConfigDef.Importance.MEDIUM, "URI of Jira server. Required.");
 
-
   private static final Logger log = LoggerFactory.getLogger(JsonGetAPIClient.class);
-  
-  
+
   private String dataPointer;
-  
+
   @Override
   public void configure(Map<String, ?> configs) {
     super.configure(configs);
@@ -69,9 +66,12 @@ public class JsonGetAPIClient extends HttpAPIClient {
 
     JsonNode node;
     try {
+      log.debug("reading data from response...");
       node = mapper.readValue(response.body().byteStream(), JsonNode.class);
     } catch (Exception e1) {
       throw new APIClientException("failed to read response", e1);
+    } finally {
+      response.close();
     }
 
     JsonNode dataNode = node.at(dataPointer);
